@@ -4,387 +4,465 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Landing Page Builder</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
-
-        .container {
-            display: grid;
-            grid-template-columns: 300px 1fr 300px;
-            height: 100vh;
-            gap: 1rem;
-        }
-
-        .sidebar {
-            background: #f5f5f5;
-            padding: 1rem;
-            border-right: 1px solid #ddd;
-            overflow-y: auto;
-        }
-
-        .components-panel {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .component-item {
-            padding: 0.75rem;
-            margin: 0.5rem;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        .component-list div {
             cursor: move;
-            transition: all 0.2s;
         }
-
-        .component-item:hover {
-            background: #f0f0f0;
-            transform: translateY(-2px);
+        .dropzone {
+            min-height: 50px;
+            border: 2px dashed #ccc;
         }
-
-        .preview-area {
-            background: white;
-            padding: 2rem;
-            overflow-y: auto;
+        .dropzone.drag-over {
+            background-color: #e9ecef;
+            border-color: #6c757d;
         }
-
-        #canvas {
-            min-height: 100%;
-            background: white;
-            border: 1px dashed #ddd;
-            padding: 1rem;
-        }
-
-        .settings-panel {
-            background: #f5f5f5;
-            padding: 1rem;
-            border-left: 1px solid #ddd;
-        }
-
-        .editable {
-            outline: none;
-            border: 1px dashed transparent;
-            padding: 2px;
-            min-height: 1em;
-        }
-
-        .editable:hover {
-            border-color: #007bff;
-        }
-
-        .editable:focus {
-            border-color: #007bff;
-            background: rgba(0,123,255,0.05);
-        }
-
-        .component {
-            position: relative;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .component-controls {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
+        .edit-overlay {
             display: none;
-            gap: 0.5rem;
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(0,0,0,0.5);
+            padding: 5px;
         }
-
-        .component:hover .component-controls {
-            display: flex;
-        }
-
-        .control-button {
-            padding: 0.25rem 0.5rem;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .control-button:hover {
-            background: #f0f0f0;
-        }
-
-        .export-button {
+        .component:hover .edit-overlay {
             display: block;
-            width: 100%;
-            padding: 1rem;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 1rem;
-        }
-
-        .export-button:hover {
-            background: #0056b3;
-        }
-
-        .style-controls {
-            margin-top: 1rem;
-            padding: 1rem;
-            background: white;
-            border-radius: 4px;
-        }
-
-        .style-control {
-            margin-bottom: 0.5rem;
-        }
-
-        .style-control label {
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-
-        .style-control input, .style-control select {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="components-panel">
-                <h2>Components</h2>
-                <div class="component-item" draggable="true" data-type="hero">Hero Section</div>
-                <div class="component-item" draggable="true" data-type="features">Features Grid</div>
-                <div class="component-item" draggable="true" data-type="cta">Call to Action</div>
-                <div class="component-item" draggable="true" data-type="text">Text Block</div>
-                <div class="component-item" draggable="true" data-type="image">Image</div>
-            </div>
-        </div>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
 
-        <div class="preview-area">
-            <div id="canvas"></div>
-            <button class="export-button" onclick="exportHTML()">Export HTML</button>
-        </div>
+        // Available components for drag and drop
+        const defaultStyles = {
+    backgroundColor: '#ffffff',
+    color: '#000000',
+};
 
-        <div class="sidebar settings-panel">
-            <h2>Style Editor</h2>
-            <div class="style-controls">
-                <div class="style-control">
-                    <label>Font Family</label>
-                    <select id="fontFamily" onchange="updateSelectedStyle('fontFamily')">
-                        <option value="Arial">Arial</option>
-                        <option value="Helvetica">Helvetica</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                    </select>
-                </div>
-                <div class="style-control">
-                    <label>Font Size</label>
-                    <input type="range" id="fontSize" min="12" max="72" value="16" onchange="updateSelectedStyle('fontSize')">
-                </div>
-                <div class="style-control">
-                    <label>Color</label>
-                    <input type="color" id="color" onchange="updateSelectedStyle('color')">
-                </div>
-                <div class="style-control">
-                    <label>Background Color</label>
-                    <input type="color" id="backgroundColor" onchange="updateSelectedStyle('backgroundColor')">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let selectedElement = null;
-
-        const componentItems = document.querySelectorAll('.component-item');
-        const canvas = document.getElementById('canvas');
-
-        componentItems.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', e.target.getAttribute('data-type'));
-            });
-        });
-
-        canvas.addEventListener('dragover', (e) => e.preventDefault());
-        canvas.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const componentType = e.dataTransfer.getData('text/plain');
-            addComponent(componentType);
-        });
-
-        function makeEditable(element) {
-            element.contentEditable = true;
-            element.classList.add('editable');
-            
-            element.addEventListener('click', (e) => {
-                selectedElement = element;
-                updateStyleControls(element);
-            });
-        }
-
-        function updateStyleControls(element) {
-            const computedStyle = window.getComputedStyle(element);
-            document.getElementById('fontFamily').value = computedStyle.fontFamily.split(',')[0].replace(/['"]/g, '');
-            document.getElementById('fontSize').value = parseInt(computedStyle.fontSize);
-            document.getElementById('color').value = rgbToHex(computedStyle.color);
-            document.getElementById('backgroundColor').value = rgbToHex(computedStyle.backgroundColor);
-        }
-
-        function rgbToHex(rgb) {
-            const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-            if (!match) return '#000000';
-            const r = parseInt(match[1]).toString(16).padStart(2, '0');
-            const g = parseInt(match[2]).toString(16).padStart(2, '0');
-            const b = parseInt(match[3]).toString(16).padStart(2, '0');
-            return `#${r}${g}${b}`;
-        }
-
-        function updateSelectedStyle(property) {
-            if (!selectedElement) return;
-            
-            const value = document.getElementById(property).value;
-            switch(property) {
-                case 'fontSize':
-                    selectedElement.style.fontSize = `${value}px`;
-                    break;
-                default:
-                    selectedElement.style[property] = value;
+const componentTypes = {
+            heading: {
+                type: 'heading',
+                content: 'Heading',
+                props: {
+                    level: 'h1',
+                    text: 'Click to edit',
+                    className: 'text-4xl font-bold mb-4'
+                }
+            },
+            paragraph: {
+                type: 'paragraph',
+                content: 'Text Block',
+                props: {
+                    text: 'Click to edit this text block',
+                    className: 'mb-4'
+                }
+            },
+            button: {
+                type: 'button',
+                content: 'Button',
+                props: {
+                    text: 'Click Me',
+                    className: 'bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
+                }
+            },
+            image: {
+                type: 'image',
+                content: 'Image',
+                props: {
+                    src: '/api/placeholder/400/300',
+                    alt: 'Placeholder',
+                    className: 'max-w-full h-auto',
+                    imageFile: null
+                }
+            },
+            form: {
+                type: 'form',
+                content: 'Form',
+                props: {
+                    fields: [
+                        { type: 'text', label: 'Name', placeholder: 'Enter your name' },
+                        { type: 'email', label: 'Email', placeholder: 'Enter your email' }
+                    ],
+                    className: 'space-y-4'
+                }
             }
-        }
-
-        const templates = {
-            hero: `
-                <div class="component hero-section">
-                    <div class="component-controls">
-                        <button class="control-button" onclick="deleteComponent(this)">Delete</button>
-                    </div>
-                    <h1>Welcome to Your Landing Page</h1>
-                    <p>Create high-converting landing pages optimized for Google Ads</p>
-                    <a href="#" class="cta-button">Get Started</a>
-                </div>
-            `,
-            features: `
-                <div class="component features-grid">
-                    <div class="component-controls">
-                        <button class="control-button" onclick="deleteComponent(this)">Delete</button>
-                    </div>
-                    <h2>Key Features</h2>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-                        <div>Feature 1</div>
-                        <div>Feature 2</div>
-                        <div>Feature 3</div>
-                    </div>
-                </div>
-            `,
-            text: `
-                <div class="component">
-                    <div class="component-controls">
-                        <button class="control-button" onclick="deleteComponent(this)">Delete</button>
-                    </div>
-                    <p>Click to edit this text</p>
-                </div>
-            `,
-            image: `
-                <div class="component">
-                    <div class="component-controls">
-                        <button class="control-button" onclick="deleteComponent(this)">Delete</button>
-                        <button class="control-button" onclick="changeImage(this)">Change Image</button>
-                    </div>
-                    <img src="https://via.placeholder.com/400x200" alt="Placeholder" style="max-width: 100%;">
-                </div>
-            `,
-            cta: `
-                <div class="component cta-section">
-                    <div class="component-controls">
-                        <button class="control-button" onclick="deleteComponent(this)">Delete</button>
-                    </div>
-                    <h2>Ready to Get Started?</h2>
-                    <a href="#" class="cta-button">Sign Up Now</a>
-                </div>
-            `
         };
 
-        function addComponent(type) {
-            const componentWrapper = document.createElement('div');
-            componentWrapper.innerHTML = templates[type];
-            canvas.appendChild(componentWrapper.firstElementChild);
-            
-            const editables = componentWrapper.firstElementChild.querySelectorAll('h1, h2, h3, p, a, div:not(.component-controls)');
-            editables.forEach(makeEditable);
-        }
+        // Component Editor Modal
+        const ComponentEditor = ({ component, onSave, onClose }) => {
+            const [editedProps, setEditedProps] = useState(component.props);
+            const fileInputRef = useRef(null);
 
-        function deleteComponent(button) {
-            button.closest('.component').remove();
-        }
+            const handleSave = () => {
+                onSave(editedProps);
+                onClose();
+            };
 
-        function changeImage(button) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = function(e) {
+            const renderEditor = () => {
+                const handleImageUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = button.closest('.component').querySelector('img');
-                        img.src = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
+                    setEditedProps({
+                        ...editedProps,
+                        imageFile: file,
+                        src: URL.createObjectURL(file)
+                    });
                 }
             };
-            input.click();
-        }
 
-        function exportHTML() {
-            const clonedCanvas = canvas.cloneNode(true);
+            switch (component.type) {
+                    case 'heading':
+                        return (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block mb-2">Text</label>
+                                    <input
+                                        type="text"
+                                        value={editedProps.text}
+                                        onChange={e => setEditedProps({...editedProps, text: e.target.value})}
+                                        className="w-full p-2 border rounded"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-2">Level</label>
+                                    <select
+                                        value={editedProps.level}
+                                        onChange={e => setEditedProps({...editedProps, level: e.target.value})}
+                                        className="w-full p-2 border rounded"
+                                    >
+                                        {['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map(level => (
+                                            <option key={level} value={level}>{level.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        );
+                    case 'form':
+                        return (
+                            <div className="space-y-4">
+                                {editedProps.fields.map((field, index) => (
+                                    <div key={index} className="border p-4 rounded">
+                                        <input
+                                            type="text"
+                                            value={field.label}
+                                            onChange={e => {
+                                                const newFields = [...editedProps.fields];
+                                                newFields[index] = {...field, label: e.target.value};
+                                                setEditedProps({...editedProps, fields: newFields});
+                                            }}
+                                            className="w-full p-2 border rounded mb-2"
+                                            placeholder="Field Label"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={field.placeholder}
+                                            onChange={e => {
+                                                const newFields = [...editedProps.fields];
+                                                newFields[index] = {...field, placeholder: e.target.value};
+                                                setEditedProps({...editedProps, fields: newFields});
+                                            }}
+                                            className="w-full p-2 border rounded"
+                                            placeholder="Placeholder Text"
+                                        />
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => setEditedProps({
+                                        ...editedProps,
+                                        fields: [...editedProps.fields, { type: 'text', label: 'New Field', placeholder: 'Enter value' }]
+                                    })}
+                                    className="bg-green-500 text-white px-4 py-2 rounded"
+                                >
+                                    Add Field
+                                </button>
+                            </div>
+                        );
+                    default:
+                        return (
+                            <div>
+                                <label className="block mb-2">Content</label>
+                                <input
+                                    type="text"
+                                    value={editedProps.text}
+                                    onChange={e => setEditedProps({...editedProps, text: e.target.value})}
+                                    className="w-full p-2 border rounded"
+                                />
+                            </div>
+                        );
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-lg w-96">
+                        <h2 className="text-xl font-bold mb-4">Edit {component.type}</h2>
+                        {renderEditor()}
+                        <div className="flex justify-end space-x-2 mt-4">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 border rounded"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="px-4 py-2 bg-blue-500 text-white rounded"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Draggable Component
+        const DraggableComponent = ({ component, onDragStart }) => {
+            const handleDragStart = (e) => {
+                onDragStart(component);
+                e.dataTransfer.setData('text/plain', ''); // Required for Firefox
+            };
+
+            return (
+                <div
+                    draggable
+                    onDragStart={handleDragStart}
+                    className="p-2 mb-2 bg-white border rounded shadow cursor-move"
+                >
+                    {component.content}
+                </div>
+            );
+        };
+
+        // Render different component types
+        const Component = ({ component, onEdit, onDelete }) => {
+            const wrapperStyle = {
+                margin: '10px 0',
+                padding: '20px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc'
+            };
+            const renderComponent = () => {
+                switch (component.type) {
+                    case 'heading':
+                        const HeadingTag = component.props.level;
+                        return <HeadingTag className={component.props.className}>{component.props.text}</HeadingTag>;
+                    case 'paragraph':
+                        return <p className={component.props.className}>{component.props.text}</p>;
+                    case 'button':
+                        return <button className={component.props.className}>{component.props.text}</button>;
+                    case 'image':
+                        return component.props.imageFile ? 
+                            <img 
+                                src={URL.createObjectURL(component.props.imageFile)} 
+                                alt={component.props.alt} 
+                                className={component.props.className} 
+                            /> :
+                            <img 
+                                src={component.props.src} 
+                                alt={component.props.alt} 
+                                className={component.props.className} 
+                            />;
+                    case 'form':
+                        return (
+                            <form className={component.props.className} onSubmit={e => e.preventDefault()}>
+                                {component.props.fields.map((field, index) => (
+                                    <div key={index} className="mb-4">
+                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                            {field.label}
+                                        </label>
+                                        <input
+                                            type={field.type}
+                                            placeholder={field.placeholder}
+                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                        />
+                                    </div>
+                                ))}
+                                <button
+                                    type="submit"
+                                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                                >
+                                    Submit
+                                </button>
+                            </form>
+                        );
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div className="component relative" style={wrapperStyle}>
+                    {renderComponent()}
+                    <div className="edit-overlay">
+                        <button
+                            onClick={() => onEdit(component)}
+                            className="bg-blue-500 text-white px-2 py-1 rounded mr-2"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            onClick={() => onDelete(component)}
+                            className="bg-red-500 text-white px-2 py-1 rounded"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App
+        const App = () => {
+            const [globalStyles, setGlobalStyles] = useState(defaultStyles);
+            const [components, setComponents] = useState([]);
+            const [draggedComponent, setDraggedComponent] = useState(null);
+            const [editingComponent, setEditingComponent] = useState(null);
             
-            // Remove edit controls
-            clonedCanvas.querySelectorAll('.component-controls').forEach(el => el.remove());
-            clonedCanvas.querySelectorAll('.editable').forEach(el => {
-                el.contentEditable = false;
-                el.classList.remove('editable');
-            });
-            
-            const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Landing Page</title>
-    <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-        .component { margin-bottom: 2rem; }
-        ${Array.from(document.styleSheets[0].cssRules)
-            .filter(rule => !rule.selectorText?.includes('.editable'))
-            .map(rule => rule.cssText)
-            .join('\n')}
-    </style>
-</head>
-<body>
-    ${clonedCanvas.innerHTML}
-</body>
-</html>`;
+            const handleDragStart = (component) => {
+                setDraggedComponent(component);
+            };
 
-            const blob = new Blob([html], {type: 'text/html'});
-            saveAs(blob, 'landing-page.html');
-        }
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('drag-over');
+            };
 
-        // Initialize Sortable
-        new Sortable(canvas, {
-            animation: 150,
-            ghostClass: 'sortable-ghost'
-        });
+            const handleDragLeave = (e) => {
+                e.currentTarget.classList.remove('drag-over');
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('drag-over');
+                
+                if (draggedComponent) {
+                    const newComponent = {
+                        ...draggedComponent,
+                        id: uuid.v4()
+                    };
+                    setComponents([...components, newComponent]);
+                    setDraggedComponent(null);
+                }
+            };
+
+            const handleEdit = (component) => {
+                setEditingComponent(component);
+            };
+
+            const handleDelete = (component) => {
+                setComponents(components.filter(c => c.id !== component.id));
+            };
+
+            const handleSaveEdit = (editedProps) => {
+                setComponents(components.map(c =>
+                    c.id === editingComponent.id
+                        ? { ...c, props: editedProps }
+                        : c
+                ));
+            };
+
+            const exportHTML = () => {
+                const content = document.querySelector('.dropzone').innerHTML;
+                const blob = new Blob([content], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'landing-page.html';
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            return (
+                <div className="flex h-screen bg-gray-100">
+                    {/* Global Styles Panel */}
+                    <div className="w-64 bg-white p-4 border-r">
+                        <h2 className="text-xl font-bold mb-4">Global Styles</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block mb-2">Background Color</label>
+                                <input
+                                    type="color"
+                                    value={globalStyles.backgroundColor}
+                                    onChange={e => setGlobalStyles({...globalStyles, backgroundColor: e.target.value})}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-2">Text Color</label>
+                                <input
+                                    type="color"
+                                    value={globalStyles.color}
+                                    onChange={e => setGlobalStyles({...globalStyles, color: e.target.value})}
+                                    className="w-full"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Component List */}
+                    {/* Component List */}
+                    <div className="w-64 bg-white p-4 border-r">
+                        <h2 className="text-xl font-bold mb-4">Components</h2>
+                        <div className="component-list">
+                            {Object.values(componentTypes).map((component) => (
+                                <DraggableComponent
+                                    key={component.type}
+                                    component={component}
+                                    onDragStart={handleDragStart}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Builder Area */}
+                    <div className="flex-1 p-4">
+                        <div className="mb-4">
+                            <button
+                                onClick={exportHTML}
+                                className="bg-green-500 text-white px-4 py-2 rounded"
+                            >
+                                Export HTML
+                            </button>
+                        </div>
+                        <div
+                            className="dropzone p-4 rounded-lg min-h-screen"
+                            style={globalStyles}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
+                            {components.map((component) => (
+                                <Component
+                                    key={component.id}
+                                    component={component}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Editor Modal */}
+                    {editingComponent && (
+                        <ComponentEditor
+                            component={editingComponent}
+                            onSave={handleSaveEdit}
+                            onClose={() => setEditingComponent(null)}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
